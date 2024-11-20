@@ -3,7 +3,7 @@ from django.middleware import csrf
 from django.urls import path
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import views
-from app.views import EventListView, EventDetailView, EventView, UserRegister, UserLogin, UserViewSet, UserLogout, UserView, home_view, admin_dashboard, edit_user, delete_user, user_detail, edit_event, delete_event, create_event, JoinEventView, LeaveEventView
+from app.views import EventListView, EventDetailView, EventView, UserRegister, UserLogin, UserViewSet, UserLogout, UserView, home_view, admin_dashboard, edit_user, delete_user, user_detail, edit_event, delete_event, create_event, JoinEventView, LeaveEventView, generate_captcha
 from rest_framework.routers import DefaultRouter
 from django.conf import settings
 from django.conf.urls.static import static
@@ -32,6 +32,7 @@ urlpatterns = [
     path('register/', UserRegister.as_view(), name='register'),
     path('login/', UserLogin.as_view(), name='login'),
     path('logout/', UserLogout.as_view(), name='logout'),
+    path('captcha/', generate_captcha, name='generate_captcha'),
     
     #uzytkownicy 
     path('users/<int:pk>/', UserView.as_view(), name='user_detail'),

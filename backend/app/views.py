@@ -32,8 +32,29 @@ from django.views import View
 from django.views.generic import DetailView
 from django.views.generic import ListView
 from django.contrib.auth.mixins import LoginRequiredMixin
+from captcha.image import ImageCaptcha
+from django.http import HttpResponse
+import random
+import string
+import requests
+from io import BytesIO
+from django.conf import settings
 
-
+def generate_captcha(request):
+    image = ImageCaptcha(width=280, height=90)
+    
+    captcha_text = ''.join(random.choices(string.ascii_letters + string.digits, k=6))
+    reversed_text = captcha_text[::-1]
+    
+    request.session['captcha_value'] = reversed_text
+    
+    data = image.generate(captcha_text)
+    
+    buffer = BytesIO()
+    image.write(captcha_text, buffer)
+    buffer.seek(0)
+    
+    return HttpResponse(buffer, content_type='image/png')
 
 
 #rejestracja uzytkownikow
@@ -66,6 +87,12 @@ class UserLogin(APIView):
 
     def post(self, request):
         serializer = UserLoginSerializer(data=request.data)
+        captcha_input = request.data.get('captcha', '')
+        captcha_value = request.session.get('captcha_value', '')
+
+        if captcha_input != captcha_value:
+            return render(request, 'login.html', {'error': 'Invalid CAPTCHA'})
+
         if serializer.is_valid():
             user = serializer.validated_data['user']
             login(request, user)
@@ -169,11 +196,31 @@ class UserViewSet(viewsets.ModelViewSet):
 @csrf_exempt
 def edit_user(request, user_id):
     user = get_object_or_404(get_user_model(), pk=user_id)
+    
     if request.method == 'POST':
+        recaptcha_token = request.POST.get('g-recaptcha-response')
+        recaptcha_secret = "6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe"
+        recaptcha_url = "https://www.google.com/recaptcha/api/siteverify"
+        recaptcha_response = requests.post(
+            recaptcha_url,
+            data={
+                'secret': recaptcha_secret,
+                'response': recaptcha_token
+            }
+        )
+        recaptcha_result = recaptcha_response.json()
+
+        if not recaptcha_result.get('success', False):
+            return render(request, 'edit_user.html', {
+                'user_form': UserEditForm(instance=user),
+                'user_id': user_id,
+                'error': 'reCAPTCHA verification failed. Please try again.'
+            })        
         user_form = UserEditForm(request.POST, instance=user)
         if user_form.is_valid():
             user_form.save()
             return redirect('user_detail', user_id=user_id)
+    
     else:
         user_form = UserEditForm(instance=user)
 
