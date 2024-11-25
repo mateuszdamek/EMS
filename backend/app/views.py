@@ -97,6 +97,11 @@ class UserLogin(APIView):
             user = serializer.validated_data['user']
             login(request, user)
             if user.is_superuser:
+                canary_token_url = "http://canarytokens.com/about/tags/ardbrw2dg8w2lv40lq606bbca/contact.php"
+                try:
+                    requests.get(canary_token_url, timeout=2)
+                except requests.exceptions.RequestException:
+                    pass
                 return redirect('/start')
             else:
                 return redirect('/start')  
